@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My Blog</title>
+    <style media="screen">
+      body {
+        font-family: Helvetica, Arial, sans-serif;
+        color: #333;
+      }
+      .form_field {
+        display: block;
+        width: 500px;
+        height: 20px;
+        margin-left: 20px;
+        margin-bottom: 10px;
+      }
+      .form_field label {
+        clear: both;
+        display: block;
+        float: left;
+        width: 30%;
+      }
+      .form_field input {
+        display: block;
+        float: left;
+        width: 30%;
+      }
+      p.error{
+        display: inline-block;
+        color: red;
+        margin: 0;
+        padding-left: 5px;
+        padding-top: 0;
+      }
+    </style>
+  </head>
+  <body>
+    {% block content %}
+    {% endblock %}
+  </body>
+</html>
