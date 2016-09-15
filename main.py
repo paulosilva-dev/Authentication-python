@@ -19,9 +19,30 @@ import webapp2
 import jinja2
 import re
 from google.appengine.ext import db
+import random
+import string
+import hashlib
+import logging
 
+# setting up jinja2
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
-jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir), autoescape=True)
+jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir),
+                               autoescape=True)
+
+
+# password hashing functions
+def make_salt():
+    return ''.join(random.choice(string.letters) for x in xrange(5))
+
+def make_pw_hash(name, pw, salt=None):
+    if not salt:
+        salt = make_salt()
+    h = hashlib.sha256(name + pw + salt).hexdigest()
+    return '%s|%s' % (h, salt)
+
+def valid_pw(name, pw, h):
+    salt = h.split('|')[1]
+    return h == make_pw_hash(name, pw, salt)
 
 class User(db.Model):
     name = db.StringProperty(required=True)
@@ -61,21 +82,30 @@ class signupHandler(Handler):
         self.render("signup.html", uname=uname, email=email)
 
     def post(self):
-
+        # getting form data
         user = self.request.get("username")
         pw = self.request.get("password")
         pw2 = self.request.get("verify")
         email = self.request.get("email")
 
         userValid = valid_username(user)
-        # check if user exists
+
+        # check if user exists in db
         userExists = False
+        if userValid:
+            users = db.GqlQuery("SELECT name FROM User")
+            for usr in users:
+                # logging.info("user : " + usr.name)
+                if user == usr.name:
+                    userExists = True
 
         pwValid = valid_password(pw)
         pwMatch = pw == pw2
         emailValid = True
         if email:
             emailValid = valid_email(email)
+        else:
+            email = ''
         # error messages
         error_name = ''
         error_name = ''
@@ -94,7 +124,14 @@ class signupHandler(Handler):
             error_email = 'Invalid email'
 
         if userValid and pwValid and pwMatch and emailValid:
-            #set cookie
+            # generate password Hash
+            pwhash = make_pw_hash(user, pw)
+            # save user to db
+            u = User(name=user, pwhash=pwhash, email=email)
+            u.put()
+            # logging.info('user ' + user+ ' created')
+
+            # set cookie
             self.redirect('welcome')
         else:
             self.render("signup.html", uname=user, email=email,
