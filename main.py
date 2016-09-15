@@ -190,10 +190,15 @@ class LoginHandler(Handler):
                 self.redirect('/welcome')
         self.render("login.html", uname=username, error_login="Invalid Login")
 
+class LogoutHandler(Handler):
+    def get(self):
+        self.response.delete_cookie('user')
+        self.redirect('/signup')
 
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
     ('/signup', signupHandler),
     ('/welcome', WelcomeHandler),
-    ('/login', LoginHandler)
+    ('/login', LoginHandler),
+    ('/logout', LogoutHandler)
 ], debug=True)
