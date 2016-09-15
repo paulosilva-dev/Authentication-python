@@ -68,20 +68,32 @@ class signupHandler(Handler):
         email = self.request.get("email")
 
         userValid = valid_username(user)
+        # check if user exists
+        userExists = False
+
         pwValid = valid_password(pw)
         pwMatch = pw == pw2
-        emaiValid = True
+        emailValid = True
         if email:
-            emaiValid = valid_email(email)
+            emailValid = valid_email(email)
         # error messages
-        error_name = 'Invalid Name'
-        error_name = 'User name already taken'
-        error_password = 'Invalid password'
-        error_verify = "Passwords don't match"
-        error_email = 'Invalid email'
+        error_name = ''
+        error_name = ''
+        error_password = ''
+        error_verify = ''
+        error_email = ''
+        if not userValid:
+            error_name = 'Invalid Name'
+        if userExists:
+            error_name = 'User name already taken'
+        if not pwValid:
+            error_password = 'Invalid password'
+        if not pwMatch:
+            error_verify = "Passwords don't match"
+        if not emailValid:
+            error_email = 'Invalid email'
 
-
-        if userValid and pwValid and pwMatch and emaiValid:
+        if userValid and pwValid and pwMatch and emailValid:
             #set cookie
             self.redirect('welcome')
         else:
