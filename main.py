@@ -48,9 +48,34 @@ def make_pw_hash(name, pw, salt=None):
     h = hashlib.sha256(name + pw + salt).hexdigest()
     return '%s|%s' % (h, salt)
 
-def valid_pw(name, pw, h):
+def valid_login(name, pw, h):
     salt = h.split('|')[1]
     return h == make_pw_hash(name, pw, salt)
+
+
+def getUser(username):
+    users = db.GqlQuery("SELECT * FROM User")
+    for usr in users:
+        if username == usr.name:
+            return usr
+
+def set_user_cookie(response, user):
+    userid = str(user.key().id())
+    cookieUser = make_user_hash(userid, SECRET)
+    response.set_cookie("user", cookieUser)
+
+# Form validation
+USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
+def valid_username(username):
+    return USER_RE.match(username)
+
+PASS_RE = re.compile(r"^.{3,20}$")
+def valid_password(password):
+    return PASS_RE.match(password)
+
+EMAIL_RE = re.compile(r"^[\S]+@[\S]+.[\S]+$")
+def valid_email(email):
+    return EMAIL_RE.match(email)
 
 class User(db.Model):
     name = db.StringProperty(required=True)
@@ -70,18 +95,6 @@ class Handler(webapp2.RequestHandler):
 class MainHandler(Handler):
     def get(self):
         self.redirect('/signup')
-
-USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
-def valid_username(username):
-    return USER_RE.match(username)
-
-PASS_RE = re.compile(r"^.{3,20}$")
-def valid_password(password):
-    return PASS_RE.match(password)
-
-EMAIL_RE = re.compile(r"^[\S]+@[\S]+.[\S]+$")
-def valid_email(email):
-    return EMAIL_RE.match(email)
 
 class signupHandler(Handler):
     def get(self):
@@ -143,10 +156,8 @@ class signupHandler(Handler):
             # logging.info('user ' + user+ ' created')
 
             # set cookie
-            userid = str(u.key().id())
-            cookieUser = make_user_hash(userid, SECRET)
+            set_user_cookie(self.response, u)
 
-            self.response.set_cookie("user", cookieUser)
             self.redirect('welcome')
         else:
             self.render("signup.html", uname=user, email=email,
@@ -162,8 +173,27 @@ class WelcomeHandler(Handler):
         else :
             self.redirect('signup')
 
+class LoginHandler(Handler):
+    def get(self):
+        self.render("login.html", uname='')
+    def post(self):
+        username = self.request.get("username")
+        pw = self.request.get("password")
+        pwValid = valid_password(pw)
+        userValid = valid_username(username)
+
+        user = getUser(username)
+        if user:
+            if valid_login(username, pw, user.pwhash):
+                # set cookie
+                set_user_cookie(self.response, user)
+                self.redirect('/welcome')
+        self.render("login.html", uname=username, error_login="Invalid Login")
+
+
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
     ('/signup', signupHandler),
-    ('/welcome', WelcomeHandler)
+    ('/welcome', WelcomeHandler),
+    ('/login', LoginHandler)
 ], debug=True)
