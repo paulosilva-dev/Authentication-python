@@ -29,10 +29,18 @@ template_dir = os.path.join(os.path.dirname(__file__), 'templates')
 jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir),
                                autoescape=True)
 
+# secret salt for userid
+SECRET = "ThisAintVerySecret"
 
 # password hashing functions
 def make_salt():
     return ''.join(random.choice(string.letters) for x in xrange(5))
+
+def make_user_hash(userid, salt):
+    return userid + '|' + hashlib.sha256(userid + salt).hexdigest()
+
+def is_userid_valid(h):
+    return h == make_user_hash(h.split('|')[0], SECRET)
 
 def make_pw_hash(name, pw, salt=None):
     if not salt:
@@ -88,6 +96,7 @@ class signupHandler(Handler):
         pw2 = self.request.get("verify")
         email = self.request.get("email")
 
+        # form validation :
         userValid = valid_username(user)
 
         # check if user exists in db
@@ -95,6 +104,7 @@ class signupHandler(Handler):
         if userValid:
             users = db.GqlQuery("SELECT name FROM User")
             for usr in users:
+                # debug, printing all names in db
                 # logging.info("user : " + usr.name)
                 if user == usr.name:
                     userExists = True
@@ -106,6 +116,7 @@ class signupHandler(Handler):
             emailValid = valid_email(email)
         else:
             email = ''
+
         # error messages
         error_name = ''
         error_name = ''
@@ -132,6 +143,10 @@ class signupHandler(Handler):
             # logging.info('user ' + user+ ' created')
 
             # set cookie
+            userid = str(u.key().id())
+            cookieUser = make_user_hash(userid, SECRET)
+
+            self.response.set_cookie("user", cookieUser)
             self.redirect('welcome')
         else:
             self.render("signup.html", uname=user, email=email,
@@ -140,7 +155,12 @@ class signupHandler(Handler):
 
 class WelcomeHandler(Handler):
     def get(self):
-        self.render("welcome.html", uname="uname")
+        cookieUser = self.request.cookies.get('user')
+        if is_userid_valid(cookieUser):
+            user = User.get_by_id(int(cookieUser.split('|')[0]))
+            self.render("welcome.html", uname=user.name)
+        else :
+            self.redirect('signup')
 
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
